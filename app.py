@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
+import numpy as np
 
 # --- CONFIGURAZIONE DELLA PAGINA ---
 st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_sidebar_state="expanded")
@@ -119,6 +120,64 @@ if page == "Analisi delle Piogge":
 elif page == "Trend Annuali":
     st.title("📈 Trend Annuali delle Piogge")
     st.write("Prossimamente: Analisi dei trend annuali.")
+
+    # Correggi il problema convertendo esplicitamente la colonna 'date'
+    min_date = pd.to_datetime(df["date"]).min()
+    max_date = pd.to_datetime(df["date"]).max()
+
+    start_date, end_date = st.slider(
+        "Seleziona il periodo di analisi:",
+        min_value=min_date.date() if not pd.isnull(min_date) else pd.to_datetime("2000-01-01").date(),
+        max_value=max_date.date() if not pd.isnull(max_date) else pd.to_datetime("2023-12-31").date(),
+        value=(pd.to_datetime("2010-01-01").date(), pd.to_datetime("2020-12-31").date()),
+        format="YYYY-MM-DD"
+    )
+
+    # Assicurati che la colonna 'date' sia in formato datetime
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # Converte start_date e end_date in datetime
+    start_date = pd.to_datetime(start_date, format="%Y-%m-%d")
+    end_date = pd.to_datetime(end_date, format="%Y-%m-%d")
+
+    # Filtra i dati in base al periodo selezionato
+    df_filtered = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+
+
+    df_filtered["year"] = df_filtered["date"].dt.year
+    df_annual_filtered = df_filtered.groupby("year")["rfh"].sum().reset_index()
+
+    # Regressione lineare
+    if not df_annual_filtered.empty:
+        coeffs = np.polyfit(df_annual_filtered["year"], df_annual_filtered["rfh"], 1)
+        trend_line = np.poly1d(coeffs)
+        df_annual_filtered["trend"] = trend_line(df_annual_filtered["year"])
+
+        # Trova il valore minimo e massimo delle precipitazioni annuali
+        min_year = df_annual_filtered.loc[df_annual_filtered["rfh"].idxmin(), "year"]
+        min_value = df_annual_filtered["rfh"].min()
+        max_year = df_annual_filtered.loc[df_annual_filtered["rfh"].idxmax(), "year"]
+        max_value = df_annual_filtered["rfh"].max()
+
+        # Creazione dell'istogramma
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.bar(df_annual_filtered["year"], df_annual_filtered["rfh"], color="b", alpha=0.7, label="Pioggia Totale")
+        ax.plot(df_annual_filtered["year"], df_annual_filtered["trend"], color="r", linestyle="--", linewidth=2, label="Trend Lineare")
+
+        # Punti minimo e massimo
+        ax.scatter(min_year, min_value, color="green", s=100, label="Minimo")
+        ax.scatter(max_year, max_value, color="red", s=100, label="Massimo")
+        ax.text(min_year, min_value, f"Min: {min_value:.2f} mm", fontsize=10, verticalalignment="bottom", horizontalalignment="right", color="green", fontweight="bold")
+        ax.text(max_year, max_value, f"Max: {max_value:.2f} mm", fontsize=10, verticalalignment="top", horizontalalignment="left", color="red", fontweight="bold")
+
+        ax.set_xlabel("Anno", fontsize=12)
+        ax.set_ylabel("Pioggia Totale (mm)", fontsize=12)
+        ax.set_title(f"Trend Annuale delle Piogge ({start_date} - {end_date})", fontsize=14, fontweight="bold")
+        ax.legend()
+        ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+        # Mostra il grafico in Streamlit
+        st.pyplot(fig)
 
 elif page == "Distribuzione Geografica":
     st.title("🗺️ Distribuzione Geografica")
