@@ -9,7 +9,7 @@ import geopandas as gpd
 
 import pydeck as pdk
 
-from streamlit_folium import st_folium
+
 from PIL import Image
 import time
 import rasterio
@@ -669,11 +669,17 @@ if page == "Seasonal Analysis":
             st.session_state["selected_page"] = pages[next_page_index]
             st.rerun()
 
+     # --- COMMENTS ON THE ANALYSIS ---
+    st.write(
+    "Consistent seasonal peaks\n\n"
+    "– The peaks in August have remained similar in recent years without significant variations. This could indicate stabilization in rainfall patterns.\n\n"
+    "- Comparing the distribution in recent years and then the 80s, the graphic shows **lower interannual variability**. If the curves from recent years are closer together compared to previous years, it might mean that **rainfall patterns are becoming more predictable**.\n\n"
+    "- Overall, the rainfall has been quite stable in the last 40 years. We can predict it will not change much."
+)
 # --- GEOGRAPHICAL DISTRIBUTION ---
 elif page == "Geographical Distribution":
     st.title("🗺️ Geographical Distribution")
     st.write("Coming soon: Visualization of rainfall by region.")
-
 
     # Percorso alle cartelle
     folder_path_1 = "Climate_Precipitation_Data/"
@@ -686,7 +692,6 @@ elif page == "Geographical Distribution":
     tif_files_sorted_2 = load_and_sort_tif_files2(folder_path_2)
     tif_files_sorted_3 = load_and_sort_tif_files3(folder_path_3)  # Terza cartella
     tif_files_sorted_4 = load_and_sort_tif_files4(folder_path_4)  # Quarta cartella
-
 
     # Inizializza lo stato della sessione per i player
     if "play_1" not in st.session_state:
@@ -709,181 +714,74 @@ elif page == "Geographical Distribution":
     if "frame_index_4" not in st.session_state:
         st.session_state.frame_index_4 = 0  # Indice del frame corrente per il player 4
 
-    # Crea una griglia 2x2 per i player
-    col1, col2, col3 = st.columns(3)  # Prima riga: due colonne
-    NULL, col4, NULL = st.columns(3)  # Seconda riga: due colonne
+    # Funzione per creare un player con legenda e descrizione
+    def create_player(col1, col2, folder_path, tif_files_sorted, player_key, title, description, cmap):
+        with col1:
+            st.subheader(title)
+
+            # Bottone Play/Pause
+            if st.button(f"▶️ Play {player_key}" if not st.session_state[f"play_{player_key}"] else f"⏸️ Pause {player_key}", key=f"play_button_{player_key}"):
+                st.session_state[f"play_{player_key}"] = not st.session_state[f"play_{player_key}"]
+                if st.session_state[f"play_{player_key}"]:
+                    globals()[f"update_frame_{player_key}"]()  # Avvia l'aggiornamento del frame
+
+            # Slider per selezionare il frame (anno)
+            frame_index = st.slider(
+                "",
+                0, len(tif_files_sorted) - 1,
+                st.session_state[f"frame_index_{player_key}"],
+                key=f"frame_slider_{player_key}"
+            )
+
+            # Mostra l'immagine corrispondente al frame selezionato
+            if st.session_state[f"frame_index_{player_key}"] < len(tif_files_sorted):
+                filename = tif_files_sorted[st.session_state[f"frame_index_{player_key}"]]
+                year = filename[:4] if player_key != 3 else filename[11:15]  # Gestione anno per Population Density
+                file_path = os.path.join(folder_path, filename)
+
+                try:
+                    with rasterio.open(file_path) as src:
+                        # Leggi i dati
+                        data = src.read(1)  # Leggi la prima banda
+
+                        # Crea una figura per la visualizzazione
+                        fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
+                        show(src, ax=ax, cmap=cmap)
+                        ax.set_title(f"Year {year}")
+                        ax.axis('off')
+
+                        # Mostra la figura in Streamlit
+                        st.pyplot(fig)
+
+                except Exception as e:
+                    st.error(f"Errore nel file {filename}: {str(e)}")
+            else:
+                st.warning("Nessun file disponibile per questo frame.")
+
+        with col2:
+            # Descrizione dettagliata con spazio aggiuntivo
+            st.markdown("<div style='margin-bottom: 210px;'></div>", unsafe_allow_html=True)  # Aggiunge spazio
+            st.markdown(f"**Description:** {description}")
+            st.markdown("<div style='margin-bottom: 390px;'></div>", unsafe_allow_html=True)  # Aggiunge spazio
+
+    # Crea una colonna per i player e una per la descrizione
+    col1, col2 = st.columns([2, 3])  # Prima colonna per i player, seconda per la descrizione
 
     # Player 1 (Climate_Precipitation_Data)
-    with col1:
-        st.subheader("Climate Precipitation")
+    create_player(col1, col2, folder_path_1, tif_files_sorted_1, 1, "Climate Precipitation",
+                  "The geographical distribution of rainfall in the Sahel has changed over the years, showing a clear trend of increasing concentration in the southern regions. Meanwhile, the northern areas are becoming progressively drier, indicating a shift in precipitation patterns that could have significant environmental and socio-economic impacts.", 'viridis')
 
-        # Bottone Play/Pause per il player 1
-        if st.button("▶️ Play 1" if not st.session_state.play_1 else "⏸️ Pause 1", key="play_button_1"):
-            st.session_state.play_1 = not st.session_state.play_1  # Cambia lo stato di riproduzione
-            if st.session_state.play_1:
-                update_frame_1()  # Avvia l'aggiornamento del frame
-
-        # Slider per selezionare il frame (anno) per il player 1
-        frame_index_1 = st.slider(
-            "",
-            0, len(tif_files_sorted_1) - 1,
-            st.session_state.frame_index_1,
-            key="frame_slider_1"
-        )
-
-        # Mostra l'immagine corrispondente al frame selezionato
-        if st.session_state.frame_index_1 < len(tif_files_sorted_1):
-            filename = tif_files_sorted_1[st.session_state.frame_index_1]
-            year = filename[:4]
-            file_path = os.path.join(folder_path_1, filename)
-
-            try:
-                with rasterio.open(file_path) as src:
-                    # Leggi i dati
-                    data = src.read(1)  # Leggi la prima banda
-
-                    # Crea una figura per la visualizzazione
-                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
-                    show(src, ax=ax, cmap='viridis')
-                    ax.set_title(f"Year {year}")
-                    ax.axis('off')
-
-                    # Mostra la figura in Streamlit
-                    st.pyplot(fig)
-
-            except Exception as e:
-                st.error(f"Errore nel file {filename}: {str(e)}")
-        else:
-            st.warning("Nessun file disponibile per questo frame.")
-
-    # Player 2 (Gross Primary Production GPP)
-    with col2:
-        st.subheader("GPP")
-
-        # Bottone Play/Pause per il player 2
-        if st.button("▶️ Play 2" if not st.session_state.play_2 else "⏸️ Pause 2", key="play_button_2"):
-            st.session_state.play_2 = not st.session_state.play_2  # Cambia lo stato di riproduzione
-            if st.session_state.play_2:
-                update_frame_2()  # Avvia l'aggiornamento del frame
-
-        # Slider per selezionare il frame (anno) per il player 2
-        frame_index_2 = st.slider(
-            "",
-            0, len(tif_files_sorted_2) - 1,
-            st.session_state.frame_index_2,
-            key="frame_slider_2"
-        )
-
-        # Mostra l'immagine corrispondente al frame selezionato
-        if st.session_state.frame_index_2 < len(tif_files_sorted_2):
-            filename = tif_files_sorted_2[st.session_state.frame_index_2]
-            year = filename[:4]
-            file_path = os.path.join(folder_path_2, filename)
-
-            try:
-                with rasterio.open(file_path) as src:
-                    # Leggi i dati
-                    data = src.read(1)  # Leggi la prima banda
-
-                    # Crea una figura per la visualizzazione
-                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
-                    show(src, ax=ax, cmap='plasma')  # Usa una mappa di colore diversa
-                    ax.set_title(f"Year {year}")
-                    ax.axis('off')
-
-                    # Mostra la figura in Streamlit
-                    st.pyplot(fig)
-
-            except Exception as e:
-                st.error(f"Errore nel file {filename}: {str(e)}")
-        else:
-            st.warning("Nessun file disponibile per questo frame.")
+    # Player 2 (GPP)
+    create_player(col1, col2, folder_path_2, tif_files_sorted_2, 2, "Gross Primary Production, GPP",
+                  "This map shows Burkina Faso’s Gross Primary Productivity (GPP) in 2021. It is shaped like the country’s outline and is divided into two main colors—yellow and dark blue—indicating different GPP values across the territory. The northern and northeastern areas are predominantly shown in yellow, while the central and southern regions appear mostly in dark blue. This color contrast illustrates variations in vegetation productivity, with the darker tones generally reflecting higher productivity levels.", 'plasma')
 
     # Player 3 (Population Density)
-    with col3:
-        st.subheader("Population Density")
+    create_player(col1, col2, folder_path_3, tif_files_sorted_3, 3, "Population Density",
+                  "The population density is highest in three locations corresponding to the inhabited centers and does not change over the years.", 'inferno')
 
-        # Bottone Play/Pause per il player 3
-        if st.button("▶️ Play 3" if not st.session_state.play_3 else "⏸️ Pause 3", key="play_button_3"):
-            st.session_state.play_3 = not st.session_state.play_3  # Cambia lo stato di riproduzione
-            if st.session_state.play_3:
-                update_frame_3()  # Avvia l'aggiornamento del frame
-
-        # Slider per selezionare il frame (anno) per il player 3
-        frame_index_3 = st.slider(
-            "",
-            0, len(tif_files_sorted_3) - 1,
-            st.session_state.frame_index_3,
-            key="frame_slider_3"
-        )
-
-        # Mostra l'immagine corrispondente al frame selezionato
-        if st.session_state.frame_index_3 < len(tif_files_sorted_3):
-            filename = tif_files_sorted_3[st.session_state.frame_index_3]
-            year = filename[11:15]
-            file_path = os.path.join(folder_path_3, filename)
-
-            try:
-                with rasterio.open(file_path) as src:
-                    # Leggi i dati
-                    data = src.read(1)  # Leggi la prima banda
-
-                    # Crea una figura per la visualizzazione
-                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
-                    show(src, ax=ax, cmap='inferno')  # Usa una mappa di colore diversa
-                    ax.set_title(f"Year {year}")
-                    ax.axis('off')
-
-                    # Mostra la figura in Streamlit
-                    st.pyplot(fig)
-
-            except Exception as e:
-                st.error(f"Errore nel file {filename}: {str(e)}")
-        else:
-            st.warning("Nessun file disponibile per questo frame.")
-
-    # Player 4 (Land Cover)
-    with col4:
-        st.subheader("Land Cover")
-
-        # Bottone Play/Pause per il player 4
-        if st.button("▶️ Play 4" if not st.session_state.play_4 else "⏸️ Pause 4", key="play_button_4"):
-            st.session_state.play_4 = not st.session_state.play_4  # Cambia lo stato di riproduzione
-            if st.session_state.play_4:
-                update_frame_4()  # Avvia l'aggiornamento del frame
-
-        # Slider per selezionare il frame (anno) per il player 4
-        frame_index_4 = st.slider(
-            "",
-            0, len(tif_files_sorted_4) - 1,
-            st.session_state.frame_index_4,
-            key="frame_slider_4"
-        )
-
-        # Mostra l'immagine corrispondente al frame selezionato
-        if st.session_state.frame_index_4 < len(tif_files_sorted_4):
-            filename = tif_files_sorted_4[st.session_state.frame_index_4]
-            year = filename[:4]
-            file_path = os.path.join(folder_path_4, filename)
-
-            try:
-                with rasterio.open(file_path) as src:
-                    # Leggi i dati
-                    data = src.read(1)  # Leggi la prima banda
-
-                    # Crea una figura per la visualizzazione
-                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
-                    show(src, ax=ax, cmap='magma')  # Usa una mappa di colore diversa
-                    ax.set_title(f"Year {year}")
-                    ax.axis('off')
-
-                    # Mostra la figura in Streamlit
-                    st.pyplot(fig)
-
-            except Exception as e:
-                st.error(f"Errore nel file {filename}: {str(e)}")
-        else:
-            st.warning("Nessun file disponibile per questo frame.")
+    # Player 4 (land cover)
+    create_player(col1, col2, folder_path_4, tif_files_sorted_4, 4, "Land cover",
+                  "The map showing land use cover for agricultural purposes reveals an interesting trend over the years. At the beginning of the 2000s, the area dedicated to agriculture was relatively limited. However, around 2010, there was a noticeable increase in agricultural land use, likely driven by factors such as growing demand for food, technological advancements, or policy changes. This upward trend continued for some time, but in recent years, the map indicates a downward trend in agricultural land use. This decline could be attributed to various factors, including urbanization, land degradation, shifts toward more sustainable practices, or changes in agricultural policies. Overall, the map highlights the dynamic nature of land use and the impact of socio-economic and environmental factors on agricultural landscapes", 'magma')
 
     # Avvia l'aggiornamento automatico se i player sono in riproduzione
     if st.session_state.play_1:
@@ -895,8 +793,8 @@ elif page == "Geographical Distribution":
     if st.session_state.play_4:
         update_frame_4()
 
-
-    col1, col2 , col3= st.columns([1, 2, 1])
+    # Pulsanti per navigare tra le pagine
+    col1, col2, col3 = st.columns([1, 2, 1])
 
     with col1:
         if st.button("← Previous page"):
@@ -912,6 +810,7 @@ elif page == "Geographical Distribution":
             st.session_state["selected_page"] = pages[next_page_index]
             st.rerun()
 
+    
 # --- RAW DATA ---
 elif page == "Raw Data":
     st.title("📜 Raw Data")
