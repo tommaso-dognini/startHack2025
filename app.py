@@ -9,6 +9,8 @@ import json
 import pydeck as pdk
 import folium
 from streamlit_folium import st_folium
+import openai
+openai.api_key = st.secrets["openai"]["api_key"]
 
 # --- CONFIGURAZIONE DELLA PAGINA ---
 st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_sidebar_state="expanded")
@@ -16,7 +18,7 @@ st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_si
 # --- MENU LATERALE ---
 st.sidebar.title("📊 Menu di Navigazione")
 use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
-page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio", "OpenStreetMap"])
+page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio", "OpenStreetMap", "Chat Bot"])
 
 # --- CARICAMENTO E PREPARAZIONE DEI DATI ---
 @st.cache_data
@@ -397,3 +399,54 @@ elif page == "OpenStreetMap":
     # Renderizza la mappa in Streamlit
     st.title("Mappa delle strade del Sahel")
     st_folium(m, width=700, height=500)
+
+elif page == "Chat Bot":
+    st.title("🤖 Chat Bot AI")
+    st.write("Questo chatbot integra le API di OpenAI e utilizza un riepilogo dei dati già caricati per rispondere alle tue domande.")
+
+    # Funzione per creare un riepilogo dei dati (modifica a piacere)
+    def get_data_summary():
+        min_date = df["date"].min().date()
+        max_date = df["date"].max().date()
+        summary = f"Il dataset copre le date dal {min_date} al {max_date}. Analizza le precipitazioni giornaliere nel Burkina Faso."
+        return summary
+
+    data_summary = get_data_summary()
+
+    # Gestione della cronologia della chat
+    if 'chat_history' not in st.session_state:
+        st.session_state['chat_history'] = []
+
+    # Input utente
+    user_input = st.text_input("Scrivi il tuo messaggio:")
+
+    if st.button("Invia"):
+        if user_input:
+            # Costruisci il prompt includendo il riepilogo dei dati
+            prompt = f"Ho i seguenti dati: {data_summary}. {user_input}"
+
+            # Chiamata alle API di OpenAI
+            import openai
+            # Assicurati di avere impostato la chiave API (ad esempio, tramite l'ambiente OPENAI_API_KEY)
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "Sei un assistente esperto in analisi dei dati relativi alle precipitazioni in Burkina Faso."},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                answer = response.choices[0].message.content
+            except Exception as e:
+                answer = f"Errore durante la chiamata all'API: {e}"
+
+            st.session_state['chat_history'].append({"role": "user", "content": user_input})
+            st.session_state['chat_history'].append({"role": "bot", "content": answer})
+            st.experimental_rerun()
+
+    # Visualizza la cronologia della chat
+    for msg in st.session_state['chat_history']:
+        if msg['role'] == "user":
+            st.markdown(f"**Utente:** {msg['content']}")
+        else:
+            st.markdown(f"**Bot:** {msg['content']}")
