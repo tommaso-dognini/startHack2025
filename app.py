@@ -13,6 +13,76 @@ import folium
 from streamlit_folium import st_folium
 from openai import OpenAI
 from agent import run_agent
+from PIL import Image
+import time
+import rasterio
+from rasterio.plot import show
+
+
+# Funzione per aggiornare il frame del player 1
+def update_frame_1():
+    if st.session_state.play_1:
+        # Incrementa l'indice del frame
+        st.session_state.frame_index_1 = (st.session_state.frame_index_1 + 1) % len(tif_files_sorted_1)
+        time.sleep(0.5)  # Ritardo di 0.5 secondo
+        st.rerun()  # Riavvia l'app per aggiornare il frame
+
+# Funzione per aggiornare il frame del player 2
+def update_frame_2():
+    if st.session_state.play_2:
+        # Incrementa l'indice del frame
+        st.session_state.frame_index_2 = (st.session_state.frame_index_2 + 1) % len(tif_files_sorted_2)
+        time.sleep(0.5)  # Ritardo di 0.5 secondo
+        st.rerun()  # Riavvia l'app per aggiornare il frame
+
+# Funzione per aggiornare il frame del player 3
+def update_frame_3():
+    if st.session_state.play_3:
+        # Incrementa l'indice del frame
+        st.session_state.frame_index_3 = (st.session_state.frame_index_3 + 1) % len(tif_files_sorted_3)
+        time.sleep(0.5)  # Ritardo di 1 secondo
+        st.rerun()  # Riavvia l'app per aggiornare il frame
+
+# Funzione per aggiornare il frame del player 4
+def update_frame_4():
+    if st.session_state.play_4:
+        # Incrementa l'indice del frame
+        st.session_state.frame_index_4 = (st.session_state.frame_index_4 + 1) % len(tif_files_sorted_4)
+        time.sleep(0.5)  # Ritardo di 1 secondo
+        st.rerun()  # Riavvia l'app per aggiornare il frame
+
+
+# Funzione per caricare e ordinare i file .tif
+def load_and_sort_tif_files(folder_path):
+    tif_files = [
+        f for f in os.listdir(folder_path)
+        if f.endswith('.tif') and f[:4].isdigit() and 'R' in f
+    ]
+    return sorted(tif_files, key=lambda x: int(x[:4]))
+
+# Funzione per caricare e ordinare i file .tif
+def load_and_sort_tif_files2(folder_path):
+    tif_files = [
+        f for f in os.listdir(folder_path)
+        if f.endswith('.tif') and f[:4].isdigit() and '_GP' in f
+    ]
+    return sorted(tif_files, key=lambda x: int(x[:4]))
+
+def load_and_sort_tif_files3(folder_path):
+    tif_files = [
+        f for f in os.listdir(folder_path)
+        if f.endswith('.tif') and f[11:15].isdigit() and 'Assaba' in f
+    ]
+    return sorted(tif_files, key=lambda x: int(x[11:15]))
+
+# Funzione per caricare e ordinare i file .tif
+def load_and_sort_tif_files4(folder_path):
+    tif_files = [
+        f for f in os.listdir(folder_path)
+        if f.endswith('.tif') and f[:4].isdigit() and 'LCT' in f
+    ]
+    return sorted(tif_files, key=lambda x: int(x[:4]))
+
 
 client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
@@ -606,6 +676,227 @@ if page == "Seasonal Analysis":
 elif page == "Geographical Distribution":
     st.title("🗺️ Geographical Distribution")
     st.write("Coming soon: Visualization of rainfall by region.")
+
+
+    # Percorso alle cartelle
+    folder_path_1 = "Climate_Precipitation_Data/"
+    folder_path_2 = "MODIS_Gross_Primary_Production_GPP/"
+    folder_path_3 = "Gridded_Population_Density_Data/"  # Terza cartella
+    folder_path_4 = "Modis_Land_Cover_Data/"  # Quarta cartella
+
+    # Carica e ordina i file per tutte le cartelle
+    tif_files_sorted_1 = load_and_sort_tif_files(folder_path_1)
+    tif_files_sorted_2 = load_and_sort_tif_files2(folder_path_2)
+    tif_files_sorted_3 = load_and_sort_tif_files3(folder_path_3)  # Terza cartella
+    tif_files_sorted_4 = load_and_sort_tif_files4(folder_path_4)  # Quarta cartella
+
+
+    # Inizializza lo stato della sessione per i player
+    if "play_1" not in st.session_state:
+        st.session_state.play_1 = False  # Stato di riproduzione per il player 1
+    if "frame_index_1" not in st.session_state:
+        st.session_state.frame_index_1 = 0  # Indice del frame corrente per il player 1
+
+    if "play_2" not in st.session_state:
+        st.session_state.play_2 = False  # Stato di riproduzione per il player 2
+    if "frame_index_2" not in st.session_state:
+        st.session_state.frame_index_2 = 0  # Indice del frame corrente per il player 2
+
+    if "play_3" not in st.session_state:
+        st.session_state.play_3 = False  # Stato di riproduzione per il player 3
+    if "frame_index_3" not in st.session_state:
+        st.session_state.frame_index_3 = 0  # Indice del frame corrente per il player 3
+
+    if "play_4" not in st.session_state:
+        st.session_state.play_4 = False  # Stato di riproduzione per il player 4
+    if "frame_index_4" not in st.session_state:
+        st.session_state.frame_index_4 = 0  # Indice del frame corrente per il player 4
+
+    # Crea una griglia 2x2 per i player
+    col1, col2, col3 = st.columns(3)  # Prima riga: due colonne
+    NULL, col4, NULL = st.columns(3)  # Seconda riga: due colonne
+
+    # Player 1 (Climate_Precipitation_Data)
+    with col1:
+        st.subheader("Climate Precipitation")
+
+        # Bottone Play/Pause per il player 1
+        if st.button("▶️ Play 1" if not st.session_state.play_1 else "⏸️ Pause 1", key="play_button_1"):
+            st.session_state.play_1 = not st.session_state.play_1  # Cambia lo stato di riproduzione
+            if st.session_state.play_1:
+                update_frame_1()  # Avvia l'aggiornamento del frame
+
+        # Slider per selezionare il frame (anno) per il player 1
+        frame_index_1 = st.slider(
+            "",
+            0, len(tif_files_sorted_1) - 1,
+            st.session_state.frame_index_1,
+            key="frame_slider_1"
+        )
+
+        # Mostra l'immagine corrispondente al frame selezionato
+        if st.session_state.frame_index_1 < len(tif_files_sorted_1):
+            filename = tif_files_sorted_1[st.session_state.frame_index_1]
+            year = filename[:4]
+            file_path = os.path.join(folder_path_1, filename)
+
+            try:
+                with rasterio.open(file_path) as src:
+                    # Leggi i dati
+                    data = src.read(1)  # Leggi la prima banda
+
+                    # Crea una figura per la visualizzazione
+                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
+                    show(src, ax=ax, cmap='viridis')
+                    ax.set_title(f"Year {year}")
+                    ax.axis('off')
+
+                    # Mostra la figura in Streamlit
+                    st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Errore nel file {filename}: {str(e)}")
+        else:
+            st.warning("Nessun file disponibile per questo frame.")
+
+    # Player 2 (Gross Primary Production GPP)
+    with col2:
+        st.subheader("GPP")
+
+        # Bottone Play/Pause per il player 2
+        if st.button("▶️ Play 2" if not st.session_state.play_2 else "⏸️ Pause 2", key="play_button_2"):
+            st.session_state.play_2 = not st.session_state.play_2  # Cambia lo stato di riproduzione
+            if st.session_state.play_2:
+                update_frame_2()  # Avvia l'aggiornamento del frame
+
+        # Slider per selezionare il frame (anno) per il player 2
+        frame_index_2 = st.slider(
+            "",
+            0, len(tif_files_sorted_2) - 1,
+            st.session_state.frame_index_2,
+            key="frame_slider_2"
+        )
+
+        # Mostra l'immagine corrispondente al frame selezionato
+        if st.session_state.frame_index_2 < len(tif_files_sorted_2):
+            filename = tif_files_sorted_2[st.session_state.frame_index_2]
+            year = filename[:4]
+            file_path = os.path.join(folder_path_2, filename)
+
+            try:
+                with rasterio.open(file_path) as src:
+                    # Leggi i dati
+                    data = src.read(1)  # Leggi la prima banda
+
+                    # Crea una figura per la visualizzazione
+                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
+                    show(src, ax=ax, cmap='plasma')  # Usa una mappa di colore diversa
+                    ax.set_title(f"Year {year}")
+                    ax.axis('off')
+
+                    # Mostra la figura in Streamlit
+                    st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Errore nel file {filename}: {str(e)}")
+        else:
+            st.warning("Nessun file disponibile per questo frame.")
+
+    # Player 3 (Population Density)
+    with col3:
+        st.subheader("Population Density")
+
+        # Bottone Play/Pause per il player 3
+        if st.button("▶️ Play 3" if not st.session_state.play_3 else "⏸️ Pause 3", key="play_button_3"):
+            st.session_state.play_3 = not st.session_state.play_3  # Cambia lo stato di riproduzione
+            if st.session_state.play_3:
+                update_frame_3()  # Avvia l'aggiornamento del frame
+
+        # Slider per selezionare il frame (anno) per il player 3
+        frame_index_3 = st.slider(
+            "",
+            0, len(tif_files_sorted_3) - 1,
+            st.session_state.frame_index_3,
+            key="frame_slider_3"
+        )
+
+        # Mostra l'immagine corrispondente al frame selezionato
+        if st.session_state.frame_index_3 < len(tif_files_sorted_3):
+            filename = tif_files_sorted_3[st.session_state.frame_index_3]
+            year = filename[11:15]
+            file_path = os.path.join(folder_path_3, filename)
+
+            try:
+                with rasterio.open(file_path) as src:
+                    # Leggi i dati
+                    data = src.read(1)  # Leggi la prima banda
+
+                    # Crea una figura per la visualizzazione
+                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
+                    show(src, ax=ax, cmap='inferno')  # Usa una mappa di colore diversa
+                    ax.set_title(f"Year {year}")
+                    ax.axis('off')
+
+                    # Mostra la figura in Streamlit
+                    st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Errore nel file {filename}: {str(e)}")
+        else:
+            st.warning("Nessun file disponibile per questo frame.")
+
+    # Player 4 (Land Cover)
+    with col4:
+        st.subheader("Land Cover")
+
+        # Bottone Play/Pause per il player 4
+        if st.button("▶️ Play 4" if not st.session_state.play_4 else "⏸️ Pause 4", key="play_button_4"):
+            st.session_state.play_4 = not st.session_state.play_4  # Cambia lo stato di riproduzione
+            if st.session_state.play_4:
+                update_frame_4()  # Avvia l'aggiornamento del frame
+
+        # Slider per selezionare il frame (anno) per il player 4
+        frame_index_4 = st.slider(
+            "",
+            0, len(tif_files_sorted_4) - 1,
+            st.session_state.frame_index_4,
+            key="frame_slider_4"
+        )
+
+        # Mostra l'immagine corrispondente al frame selezionato
+        if st.session_state.frame_index_4 < len(tif_files_sorted_4):
+            filename = tif_files_sorted_4[st.session_state.frame_index_4]
+            year = filename[:4]
+            file_path = os.path.join(folder_path_4, filename)
+
+            try:
+                with rasterio.open(file_path) as src:
+                    # Leggi i dati
+                    data = src.read(1)  # Leggi la prima banda
+
+                    # Crea una figura per la visualizzazione
+                    fig, ax = plt.subplots(figsize=(6, 4))  # Ridimensiona la figura
+                    show(src, ax=ax, cmap='magma')  # Usa una mappa di colore diversa
+                    ax.set_title(f"Year {year}")
+                    ax.axis('off')
+
+                    # Mostra la figura in Streamlit
+                    st.pyplot(fig)
+
+            except Exception as e:
+                st.error(f"Errore nel file {filename}: {str(e)}")
+        else:
+            st.warning("Nessun file disponibile per questo frame.")
+
+    # Avvia l'aggiornamento automatico se i player sono in riproduzione
+    if st.session_state.play_1:
+        update_frame_1()
+    if st.session_state.play_2:
+        update_frame_2()
+    if st.session_state.play_3:
+        update_frame_3()
+    if st.session_state.play_4:
+        update_frame_4()
 
 
     col1, col2 , col3= st.columns([1, 2, 1])
