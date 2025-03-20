@@ -4,14 +4,19 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
 import numpy as np
+import geopandas as gpd
+import json
+import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 
 # --- CONFIGURAZIONE DELLA PAGINA ---
 st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_sidebar_state="expanded")
 
 # --- MENU LATERALE ---
 st.sidebar.title("📊 Menu di Navigazione")
-page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio"])
 use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
+page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio", "OpenStreetMap"])
 
 # --- CARICAMENTO E PREPARAZIONE DEI DATI ---
 @st.cache_data
@@ -265,7 +270,7 @@ elif page == "Distribuzione Geografica":
 elif page == "Dati Grezzi":
     st.title("📜 Dati Grezzi")
     st.write("Anteprima del dataset caricato:")
-    st.dataframe(df)
+    st.dataframe(df.head(20))
 
 if page == "Uso del Territorio":
     st.title("🌍 Uso del Territorio in Burkina Faso")
@@ -321,3 +326,74 @@ if page == "Uso del Territorio":
     correlation = df_selected[['Value_agriculture', 'Value_forest', 'Value_arable']].corr()
     st.write("### Matrice di correlazione tra Superficie Agricola, Forestale e Coltivabile:")
     st.dataframe(correlation)
+
+elif page == "OpenStreetMap":
+    st.title("Mappa stradale del Sahel")
+
+    try:
+        with open("geoBoundaries-BFA-ADM1.geojson") as f:
+            geojson_data = json.load(f)
+    except FileNotFoundError:
+        st.error("File geoBoundaries-BFA-ADM1.geojson non trovato nella directory principale")
+        st.stop()
+
+
+
+    # Carica il file geojson delle strade del Burkina Faso
+    roads_gdf = gpd.read_file("hotosm_bfa_roads_lines_geojson.geojson")
+
+    # Se il CRS non è definito, impostalo (modifica l'EPSG se necessario)
+    if roads_gdf.crs is None:
+        roads_gdf = roads_gdf.set_crs("EPSG:4326")
+
+    # Creiamo un GeoDataFrame dai confini della regione del Sahel (già caricato nella variabile geojson_data)
+    region_gdf = gpd.GeoDataFrame.from_features(geojson_data["features"])
+
+    # Se anche il CRS della regione non è definito, impostalo
+    if region_gdf.crs is None:
+        region_gdf = region_gdf.set_crs("EPSG:4326")
+
+    # Converti il sistema di coordinate delle strade in quello della regione (se necessario)
+    roads_gdf = roads_gdf.to_crs(region_gdf.crs)
+
+    # Unisci i confini della regione in un'unica geometria
+    region_union = region_gdf.unary_union
+
+    # Filtra le strade che intersecano i confini del Sahel
+    roads_in_region = roads_gdf[roads_gdf.intersects(region_union)]
+
+    # Calcola il centro della regione per centrare la mappa
+    centroid = region_union.centroid
+    map_center = [centroid.y, centroid.x]
+
+    # Crea la mappa con Folium
+    m = folium.Map(location=map_center, zoom_start=10)
+
+    # Aggiungi il layer dei confini della regione con uno stile semi-trasparente
+    folium.GeoJson(
+        region_gdf,
+        name="Confini Sahel",
+        style_function=lambda feature: {
+            'fillColor': '#0000ff',
+            'color': '#0000ff',
+            'weight': 2,
+            'fillOpacity': 0.1
+        }
+    ).add_to(m)
+
+    # Aggiungi il layer delle strade con uno stile in rosso
+    folium.GeoJson(
+        roads_in_region,
+        name="Strade",
+        style_function=lambda feature: {
+            'color': 'red',
+            'weight': 2
+        }
+    ).add_to(m)
+
+    # Aggiungi il controllo dei layer alla mappa
+    folium.LayerControl().add_to(m)
+
+    # Renderizza la mappa in Streamlit
+    st.title("Mappa delle strade del Sahel")
+    st_folium(m, width=700, height=500)
