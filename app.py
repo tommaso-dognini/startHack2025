@@ -653,6 +653,15 @@ if page == "Seasonal Analysis":
     ax.grid(axis="y", linestyle="--", alpha=0.7)
     st.pyplot(fig)
 
+     # --- COMMENTS ON THE ANALYSIS ---
+    st.write(
+    "Consistent seasonal peaks\n\n"
+    "– The peaks in August have remained similar in recent years without significant variations. This could indicate stabilization in rainfall patterns.\n\n"
+    "- Comparing the distribution in recent years and then the 80s, the graphic shows **lower interannual variability**. If the curves from recent years are closer together compared to previous years, it might mean that **rainfall patterns are becoming more predictable**.\n\n"
+    "- Overall, the rainfall has been quite stable in the last 40 years. We can predict it will not change much."
+    )
+
+
     col1, col2 , col3= st.columns([1, 2, 1])
 
     with col1:
@@ -669,13 +678,7 @@ if page == "Seasonal Analysis":
             st.session_state["selected_page"] = pages[next_page_index]
             st.rerun()
 
-     # --- COMMENTS ON THE ANALYSIS ---
-    st.write(
-    "Consistent seasonal peaks\n\n"
-    "– The peaks in August have remained similar in recent years without significant variations. This could indicate stabilization in rainfall patterns.\n\n"
-    "- Comparing the distribution in recent years and then the 80s, the graphic shows **lower interannual variability**. If the curves from recent years are closer together compared to previous years, it might mean that **rainfall patterns are becoming more predictable**.\n\n"
-    "- Overall, the rainfall has been quite stable in the last 40 years. We can predict it will not change much."
-)
+            
 # --- GEOGRAPHICAL DISTRIBUTION ---
 elif page == "Geographical Distribution":
     st.title("🗺️ Geographical Distribution")
@@ -810,7 +813,7 @@ elif page == "Geographical Distribution":
             st.session_state["selected_page"] = pages[next_page_index]
             st.rerun()
 
-    
+
 # --- RAW DATA ---
 elif page == "Raw Data":
     st.title("📜 Raw Data")
