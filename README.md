@@ -26,14 +26,14 @@ Getting Started
 ---------------
 1. Clone the Repository:
    git clone https://github.com/yourusername/sahel-region-analysis.git
-   cd sahel-region-analysis
+   ```cd sahel-region-analysis```
 
 2. Install Dependencies:
    Ensure you have Python 3.7 or later installed, then run:
-   pip install -r requirements.txt
+   ```pip install -r requirements.txt```
 
 3. Run the App:
-   streamlit run app.py
+   ```streamlit run app.py```
 
 Project Structure
 -----------------
