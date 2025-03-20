@@ -10,40 +10,51 @@ st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_si
 
 # --- MENU LATERALE ---
 st.sidebar.title("📊 Menu di Navigazione")
-page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Distribuzione Geografica", "Dati Grezzi"])
+use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
+page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi"])
 
 # --- CARICAMENTO E PREPARAZIONE DEI DATI ---
 @st.cache_data
 def load_data():
     df = pd.read_csv("bfa-rainfall-adm2-full.csv", parse_dates=["date"], low_memory=False)
     df = df.iloc[1:]  # Rimuove la prima riga se non serve
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")  # Converte la colonna in datetime
     df["rfh"] = pd.to_numeric(df["rfh"], errors="coerce")  # Converti a numerico
     return df
 
 df = load_data()
 
 # --- GESTIONE DELLE PAGES ---
-if page == "Analisi delle Piogge":
-    st.title("📊 Rainfall Analysis in Burkina Faso")
-    st.write("Seleziona l'intervallo di date per analizzare la pioggia giornaliera.")
-
-    # Correggi il problema convertendo esplicitamente la colonna 'date'
-    min_date = pd.to_datetime(df["date"]).min()
-    max_date = pd.to_datetime(df["date"]).max()
-
-    # Usa solo .date() se il valore non è NaT
-    start_date, end_date = st.slider(
+if use_same_slider:
+    min_date = df["date"].min()
+    max_date = df["date"].max()
+    start_date, end_date = st.sidebar.slider(
         "Seleziona il periodo di analisi:",
-        min_value=min_date.date() if not pd.isnull(min_date) else pd.to_datetime("2000-01-01").date(),
-        max_value=max_date.date() if not pd.isnull(max_date) else pd.to_datetime("2023-12-31").date(),
-        value=(pd.to_datetime("2021-06-01").date(), pd.to_datetime("2022-06-01").date()),
+        min_value=min_date.date(),
+        max_value=max_date.date(),
+        value=(pd.to_datetime("2010-01-01").date(), pd.to_datetime("2020-12-31").date()),
         format="YYYY-MM-DD"
     )
 
-    # --- FILTRAGGIO DEI DATI ---
-    # Assicurati che la colonna 'date' sia in formato datetime
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df_filtered = df[(df["date"] >= pd.to_datetime(start_date)) & (df["date"] <= pd.to_datetime(end_date))]
+# --- ANALISI DELLE PIOGGE ---
+if page == "Analisi delle Piogge":
+    st.title("📊 Rainfall Analysis in Burkina Faso")
+
+    if not use_same_slider:
+        min_date = df["date"].min()
+        max_date = df["date"].max()
+        start_date, end_date = st.slider(
+            "Seleziona il periodo di analisi:",
+            min_value=min_date.date(),
+            max_value=max_date.date(),
+            value=(pd.to_datetime("2021-06-01").date(), pd.to_datetime("2022-06-01").date()),
+            format="YYYY-MM-DD"
+        )
+
+    df_filtered = df[
+        (df["date"] >= pd.to_datetime(start_date, format="%Y-%m-%d")) &
+        (df["date"] <= pd.to_datetime(end_date, format="%Y-%m-%d"))
+    ]
 
     # Aggregazione dei dati (somma della pioggia giornaliera)
     df_daily_sum = df_filtered.groupby("date")["rfh"].sum().reset_index()
@@ -117,32 +128,24 @@ if page == "Analisi delle Piogge":
     # --- VISUALIZZAZIONE STREAMLIT ---
     st.pyplot(fig)
 
-elif page == "Trend Annuali":
+
     st.title("📈 Trend Annuali delle Piogge")
-    st.write("Prossimamente: Analisi dei trend annuali.")
 
-    # Correggi il problema convertendo esplicitamente la colonna 'date'
-    min_date = pd.to_datetime(df["date"]).min()
-    max_date = pd.to_datetime(df["date"]).max()
+    if not use_same_slider:
+        min_date = df["date"].min()
+        max_date = df["date"].max()
+        start_date, end_date = st.slider(
+            "Seleziona il periodo di analisi:",
+            min_value=min_date.date(),
+            max_value=max_date.date(),
+            value=(pd.to_datetime("2010-01-01").date(), pd.to_datetime("2020-12-31").date()),
+            format="YYYY-MM-DD"
+        )
 
-    start_date, end_date = st.slider(
-        "Seleziona il periodo di analisi:",
-        min_value=min_date.date() if not pd.isnull(min_date) else pd.to_datetime("2000-01-01").date(),
-        max_value=max_date.date() if not pd.isnull(max_date) else pd.to_datetime("2023-12-31").date(),
-        value=(pd.to_datetime("2010-01-01").date(), pd.to_datetime("2020-12-31").date()),
-        format="YYYY-MM-DD"
-    )
-
-    # Assicurati che la colonna 'date' sia in formato datetime
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-    # Converte start_date e end_date in datetime
-    start_date = pd.to_datetime(start_date, format="%Y-%m-%d")
-    end_date = pd.to_datetime(end_date, format="%Y-%m-%d")
-
-    # Filtra i dati in base al periodo selezionato
-    df_filtered = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-
+    df_filtered = df[
+        (df["date"] >= pd.to_datetime(start_date, format="%Y-%m-%d")) &
+        (df["date"] <= pd.to_datetime(end_date, format="%Y-%m-%d"))
+    ]
 
     df_filtered["year"] = df_filtered["date"].dt.year
     df_annual_filtered = df_filtered.groupby("year")["rfh"].sum().reset_index()
@@ -178,6 +181,82 @@ elif page == "Trend Annuali":
 
         # Mostra il grafico in Streamlit
         st.pyplot(fig)
+
+# --- ANALISI STAGIONALE ---
+if page == "Analisi Stagionale":
+    st.title("🌦️ Analisi Stagionale delle Piogge")
+
+    if not use_same_slider:
+        min_date = df["date"].min()
+        max_date = df["date"].max()
+        start_date, end_date = st.slider(
+            "Seleziona il periodo di analisi:",
+            min_value=min_date.date(),
+            max_value=max_date.date(),
+            value=(pd.to_datetime("2010-01-01").date(), pd.to_datetime("2020-12-31").date()),
+            format="YYYY-MM-DD"
+        )
+
+    df_filtered = df[
+        (df["date"] >= pd.to_datetime(start_date, format="%Y-%m-%d")) &
+        (df["date"] <= pd.to_datetime(end_date, format="%Y-%m-%d"))
+    ]
+
+    df_filtered["year"] = df_filtered["date"].dt.year
+    df_filtered["month"] = df_filtered["date"].dt.month
+    df_seasonal = df_filtered.groupby(["year", "month"])["rfh"].sum().reset_index()
+
+    # Aggiungi una checkbox per filtrare le annate
+    filter_years = st.checkbox("Seleziona anni specifici", value=False)
+
+    # Se la checkbox è attivata, mostra una multiselezione per scegliere gli anni
+    selected_years = df_seasonal["year"].unique()
+    if filter_years:
+        selected_years = st.multiselect("Seleziona gli anni da visualizzare:", df_seasonal["year"].unique(), default=df_seasonal["year"].unique())
+
+    # Filtra il dataframe df_seasonal in base agli anni selezionati
+    df_seasonal_filtered = df_seasonal[df_seasonal["year"].isin(selected_years)]
+
+    # Creare il grafico stagionale
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Raggruppa per mese e calcola la media delle precipitazioni
+    df_monthly_avg = df_seasonal_filtered.groupby("month")["rfh"].mean().reset_index()
+
+    ax.bar(df_monthly_avg["month"], df_monthly_avg["rfh"], color="b", alpha=0.7, label="Media Pioggia Mensile")
+
+    ax.set_xlabel("Mese", fontsize=12)
+    ax.set_ylabel("Pioggia Media (mm)", fontsize=12)
+    ax.set_title(f"Pioggia Media Mensile ({start_date} - {end_date})", fontsize=14, fontweight="bold")
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels(["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"])
+    ax.legend()
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Mostra il grafico in Streamlit
+    st.pyplot(fig)
+
+    # Verificare la regolarità del trend stagionale
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for year in df_seasonal_filtered["year"].unique():
+        df_yearly = df_seasonal_filtered[df_seasonal_filtered["year"] == year]
+        ax.plot(df_yearly["month"], df_yearly["rfh"], marker='o', linestyle='-', alpha=0.6, label=str(year))
+
+    ax.set_xlabel("Mese", fontsize=12)
+    ax.set_ylabel("Pioggia Totale (mm)", fontsize=12)
+    ax.set_title(f"Trend Stagionale Anno per Anno ({start_date} - {end_date})", fontsize=14, fontweight="bold")
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels(["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"])
+    ax.legend()
+    ax.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Mostra il grafico in Streamlit
+    st.pyplot(fig)
+
+if page == "Trend Annuali":
+    st.title("🗺️ trend annuali")
+
 
 elif page == "Distribuzione Geografica":
     st.title("🗺️ Distribuzione Geografica")
