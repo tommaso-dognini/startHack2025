@@ -10,8 +10,6 @@ import geopandas as gpd
 import pydeck as pdk
 
 from streamlit_folium import st_folium
-from openai import OpenAI
-from agent import run_agent
 from PIL import Image
 import time
 import rasterio
