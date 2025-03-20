@@ -1,15 +1,14 @@
 import streamlit as st
 import os
-os.environ["OPENAI_API_KEY"] = st.secrets["openai"]["api_key"]
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
 import numpy as np
 import geopandas as gpd
-import json
+
 import pydeck as pdk
-import folium
+
 from streamlit_folium import st_folium
 from openai import OpenAI
 from agent import run_agent
@@ -84,7 +83,7 @@ def load_and_sort_tif_files4(folder_path):
     return sorted(tif_files, key=lambda x: int(x[:4]))
 
 
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_sidebar_state="expanded")
