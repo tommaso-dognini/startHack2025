@@ -11,7 +11,7 @@ st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_si
 # --- MENU LATERALE ---
 st.sidebar.title("📊 Menu di Navigazione")
 use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
-page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi"])
+page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio"])
 
 # --- CARICAMENTO E PREPARAZIONE DEI DATI ---
 @st.cache_data
@@ -266,3 +266,58 @@ elif page == "Dati Grezzi":
     st.title("📜 Dati Grezzi")
     st.write("Anteprima del dataset caricato:")
     st.dataframe(df.head(20))
+
+if page == "Uso del Territorio":
+    st.title("🌍 Uso del Territorio in Burkina Faso")
+
+    # Caricare il dataset
+    file_path = "climate-change_bfa.csv"
+    df = pd.read_csv(file_path)
+
+    # Filtrare i dati del Burkina Faso
+    df_burkina = df[df["Country Name"] == "Burkina Faso"]
+
+    # Filtrare i tre indicatori principali
+    agriculture = df_burkina[df_burkina["Indicator Name"] == "Agricultural land (% of land area)"]
+    forest = df_burkina[df_burkina["Indicator Name"] == "Forest area (% of land area)"]
+    arable = df_burkina[df_burkina["Indicator Name"] == "Arable land (% of land area)"]
+
+    # Unire i tre dataset in base all'anno
+    df_selected = pd.merge(agriculture[['Year', 'Value']], forest[['Year', 'Value']], on="Year", suffixes=('_agriculture', '_forest'))
+    df_selected = pd.merge(df_selected, arable[['Year', 'Value']], on="Year")
+    df_selected.rename(columns={"Value": "Value_arable"}, inplace=True)
+
+    # Convertire i valori in numeri
+    df_selected['Value_agriculture'] = pd.to_numeric(df_selected['Value_agriculture'], errors='coerce')
+    df_selected['Value_forest'] = pd.to_numeric(df_selected['Value_forest'], errors='coerce')
+    df_selected['Value_arable'] = pd.to_numeric(df_selected['Value_arable'], errors='coerce')
+
+    # Convertire 'Year' in formato datetime
+    df_selected['Year'] = pd.to_datetime(df_selected['Year'], format='%Y')
+
+    # Ordinare i dati in ordine crescente di anno
+    df_selected = df_selected.sort_values(by="Year", ascending=True)
+
+    # Creare il grafico
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    ax.plot(df_selected['Year'], df_selected['Value_agriculture'], label="Superficie Agricola (%)", color="green", linewidth=2)
+    ax.plot(df_selected['Year'], df_selected['Value_forest'], label="Superficie Forestale (%)", color="brown", linewidth=2, linestyle="dashed")
+    ax.plot(df_selected['Year'], df_selected['Value_arable'], label="Terra Coltivabile (%)", color="blue", linewidth=2, linestyle="dotted")
+
+    ax.set_xlabel("Anno")
+    ax.set_ylabel("Percentuale della superficie totale")
+    ax.set_title("Superficie Agricola, Forestale e Coltivabile in Burkina Faso")
+    ax.legend()
+    ax.grid(True)
+
+    # Disabilitare la notazione scientifica
+    ax.ticklabel_format(style='plain', axis='y')
+
+    # Mostrare il grafico in Streamlit
+    st.pyplot(fig)
+
+    # Calcolare la matrice di correlazione e mostrarla in Streamlit
+    correlation = df_selected[['Value_agriculture', 'Value_forest', 'Value_arable']].corr()
+    st.write("### Matrice di correlazione tra Superficie Agricola, Forestale e Coltivabile:")
+    st.dataframe(correlation)
