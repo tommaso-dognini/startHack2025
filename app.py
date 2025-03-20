@@ -10,8 +10,8 @@ st.set_page_config(page_title="Burkina Faso Rainfall", layout="wide", initial_si
 
 # --- MENU LATERALE ---
 st.sidebar.title("📊 Menu di Navigazione")
-use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
 page = st.sidebar.radio("Seleziona un'analisi:", ["Analisi delle Piogge", "Trend Annuali", "Analisi Stagionale", "Distribuzione Geografica", "Dati Grezzi", "Uso del Territorio"])
+use_same_slider = st.sidebar.checkbox("Usa lo stesso slider per tutte le analisi", value=True)
 
 # --- CARICAMENTO E PREPARAZIONE DEI DATI ---
 @st.cache_data
@@ -265,7 +265,7 @@ elif page == "Distribuzione Geografica":
 elif page == "Dati Grezzi":
     st.title("📜 Dati Grezzi")
     st.write("Anteprima del dataset caricato:")
-    st.dataframe(df.head(20))
+    st.dataframe(df)
 
 if page == "Uso del Territorio":
     st.title("🌍 Uso del Territorio in Burkina Faso")
